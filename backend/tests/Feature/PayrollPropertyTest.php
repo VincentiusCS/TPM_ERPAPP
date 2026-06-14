@@ -27,6 +27,23 @@ class PayrollPropertyTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected static array $mockHolidays = [];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        
+        // Dynamic mock setup for holidays API (ignoring query parameters)
+        \Illuminate\Support\Facades\Http::fake(function ($request) {
+            if (str_contains($request->url(), 'libur.deno.dev/api')) {
+                return \Illuminate\Support\Facades\Http::response(self::$mockHolidays, 200);
+            }
+        });
+        
+        self::$mockHolidays = [];
+        \Illuminate\Support\Facades\Cache::flush();
+    }
+
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     /**
@@ -55,6 +72,7 @@ class PayrollPropertyTest extends TestCase
             $shift = Shift::factory()->create([
                 'employee_id' => $employee->id,
                 'shift_date'  => $date,
+                'wage_per_shift' => 50000,
             ]);
 
             Attendance::factory()->hadir()->create([

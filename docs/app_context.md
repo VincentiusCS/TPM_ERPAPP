@@ -298,7 +298,13 @@ $$d = 2R \arcsin\left(\sqrt{\sin^2\left(\frac{\Delta\phi}{2}\right) + \cos(\phi_
 Jika hasil perhitungan $d \le 100$ meter, presensi disetujui. Jika $d > 100$ meter, presensi diblokir dan sistem memunculkan pesan kesalahan: *"Anda berada di luar area yang diizinkan"*.
 
 ### 6.2 Perhitungan Payroll Otomatis & Ekspor PDF
-*   **Rumus Payroll**: `Total Gaji = Jumlah Presensi 'Hadir' dalam Periode x Tarif per Shift (default Rp50.000,00)`
+*   **Penyaringan & Penentuan Tanggal**: Perhitungan gaji dan filter periode penggajian didasarkan pada tanggal shift terjadwal (**`shift_date`**) yang terasosiasi dengan presensi karyawan, bukan tanggal pencatatan presensi (`attendance_date`).
+*   **Rumus Payroll**: 
+    Gaji dihitung per kehadiran dengan membedakan status hari pada tanggal shift:
+    *   *Hari Kerja Biasa & Akhir Pekan (Sabtu/Minggu)*: Menggunakan tarif shift dasar (default Rp50.000,00 atau sesuai nilai `wage_per_shift` di tabel `shifts`). Sabtu dan Minggu tidak dianggap sebagai hari libur secara otomatis.
+    *   *Hari Libur Nasional / Cuti Bersama (Resmi)*: Menggunakan tarif tetap sebesar **Rp100.000,00** per kehadiran (tidak dipengaruhi tarif dasar biasa).
+*   **Integrasi Hari Libur (Libur Deno Dev API)**:
+    Backend secara otomatis terintegrasi dengan API publik `https://libur.deno.dev/api` untuk melacak hari libur nasional Indonesia berdasarkan tahun shift (`year`). Untuk menghemat kuota dan mempercepat pemrosesan, daftar tanggal hari libur disimpan di cache Laravel (`Cache::remember`) selama **24 jam**. Pengecekan status libur untuk setiap presensi divalidasi langsung berdasarkan tanggal shift.
 *   **Ekspor Dokumen**: Backend memanfaatkan library **DOMPDF** (`barryvdh/laravel-dompdf`) untuk memformat markup HTML (template blade) langsung menjadi lembar laporan PDF berkualitas tinggi.
 *   **Konversi Valuta**: Nilai total gaji dikonversikan ke mata uang pilihan (`USD`, `EUR`, `GBP`) saat proses pembuatan PDF jika diminta.
 *   **Waktu Cetak**: Laporan mencantumkan stempel waktu cetak sesuai zona waktu terpilih (WIB, WITA, WIT) yang dikirim oleh request client.

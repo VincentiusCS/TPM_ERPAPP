@@ -10,14 +10,26 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
-/**
- * Unit tests for PayrollController.
- *
- * Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.8
- */
 class PayrollControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected static array $mockHolidays = [];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        
+        // Dynamic mock setup for holidays API (ignoring query parameters)
+        \Illuminate\Support\Facades\Http::fake(function ($request) {
+            if (str_contains($request->url(), 'libur.deno.dev/api')) {
+                return \Illuminate\Support\Facades\Http::response(self::$mockHolidays, 200);
+            }
+        });
+        
+        self::$mockHolidays = [];
+        \Illuminate\Support\Facades\Cache::flush();
+    }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -401,5 +413,42 @@ class PayrollControllerTest extends TestCase
         ]));
 
         $response->assertStatus(422);
+    }
+
+    /**
+     * Test payroll sets shift wage to Rp100,000 when worked on a holiday.
+     */
+    public function test_payroll_sets_holiday_fee_to_100000(): void
+    {
+        // Set mock holidays for this test case
+        self::$mockHolidays = [
+            [
+                'date' => '2025-07-10',
+                'name' => 'Hari Libur Test',
+                'is_national_holiday' => true,
+            ]
+        ];
+
+        \Illuminate\Support\Facades\Cache::flush();
+
+        $token = $this->actingAsAdmin();
+        $employee = Employee::factory()->aktif()->create();
+
+        // 2 shifts: one normal (2025-07-09) and one holiday (2025-07-10)
+        $s1 = Shift::create(['employee_id' => $employee->id, 'shift_date' => '2025-07-09', 'wage_per_shift' => 50000]);
+        $s2 = Shift::create(['employee_id' => $employee->id, 'shift_date' => '2025-07-10', 'wage_per_shift' => 50000]);
+
+        Attendance::create(['employee_id' => $employee->id, 'shift_id' => $s1->id, 'attendance_date' => '2025-07-09', 'status' => 'hadir']);
+        Attendance::create(['employee_id' => $employee->id, 'shift_id' => $s2->id, 'attendance_date' => '2025-07-10', 'status' => 'hadir']);
+
+        $response = $this->withToken($token)->getJson('/api/v1/payrolls?' . http_build_query([
+            'period_start' => '2025-07-01',
+            'period_end'   => '2025-07-31',
+        ]));
+
+        $response->assertStatus(200);
+        
+        // normal wage (50000) + holiday wage (100000) = 150000
+        $response->assertJsonPath('data.0.total_salary', 150000);
     }
 }

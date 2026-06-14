@@ -121,7 +121,7 @@
                 <td>: {{ $payroll->total_attendance }} hari</td>
             </tr>
             <tr>
-                <td class="label">Nilai per Shift</td>
+                <td class="label">Nilai per Shift (Rata-rata)</td>
                 <td>: {{ $currencySymbol }} {{ number_format($convertedWagePerShift, 2, ',', '.') }}</td>
             </tr>
         </table>
@@ -134,7 +134,7 @@
 
     <div class="note">
         <p>* Slip gaji ini digenerate secara otomatis oleh sistem ERP Presensi dan Payroll.</p>
-        <p>* Total gaji dihitung berdasarkan jumlah kehadiran × {{ $currencySymbol }} {{ number_format($convertedWagePerShift, 2, ',', '.') }} per shift.</p>
+        <p>* Gaji dihitung dengan ketentuan: {{ $currencySymbol }} {{ number_format($baseWage, 2, ',', '.') }} per shift (hari kerja biasa) dan {{ $currencySymbol }} {{ number_format($holidayWage, 2, ',', '.') }} per shift (hari libur/akhir pekan).</p>
     </div>
 
     <div class="footer">

@@ -21,7 +21,7 @@ class PayrollController extends Controller
      *   - period_end   (required): tanggal akhir periode (Y-m-d)
      *   - search       (optional): filter nama karyawan (partial match)
      *
-     * Rumus: total_salary = jumlah_hadir × 50000
+     * Rumus: total_salary = jumlah_hadir × 50000 (kecuali hari libur nasional flat Rp100.000,00)
      *
      * Validates: Requirements 5.1, 5.2, 5.3, 5.4, 5.8
      */
@@ -46,19 +46,20 @@ class PayrollController extends Controller
         }
         $employees = $employeesQuery->get();
 
-        // Hitung jumlah kehadiran "hadir" per karyawan dalam periode
-        $attendanceCounts = Attendance::query()
-            ->select('employee_id', DB::raw('COUNT(*) as hadir_count'))
-            ->where('status', 'hadir')
-            ->whereBetween('attendance_date', [$periodStart, $periodEnd])
+        // Ambil data presensi "hadir" beserta shift terkait untuk semua karyawan dalam periode ini berdasarkan tanggal shift
+        $attendances = Attendance::where('status', 'hadir')
+            ->whereHas('shift', function ($q) use ($periodStart, $periodEnd) {
+                $q->whereBetween('shift_date', [$periodStart, $periodEnd]);
+            })
+            ->with('shift')
             ->when($search, function ($q) use ($employees) {
                 $q->whereIn('employee_id', $employees->pluck('id'));
             })
-            ->groupBy('employee_id')
-            ->pluck('hadir_count', 'employee_id');
+            ->get()
+            ->groupBy('employee_id');
 
         // Jika tidak ada data presensi sama sekali dalam periode ini
-        if ($attendanceCounts->isEmpty()) {
+        if ($attendances->isEmpty()) {
             return response()->json([
                 'data'    => [],
                 'total'   => 0,
@@ -69,14 +70,26 @@ class PayrollController extends Controller
         $results = [];
 
         foreach ($employees as $employee) {
-            $totalAttendance = $attendanceCounts->get($employee->id, 0);
+            $employeeAttendances = $attendances->get($employee->id, collect());
+            $totalAttendance = $employeeAttendances->count();
 
             // Hanya sertakan karyawan yang memiliki data presensi dalam periode
             if ($totalAttendance === 0) {
                 continue;
             }
 
-            $totalSalary = $totalAttendance * 50000;
+            $totalSalary = 0;
+            foreach ($employeeAttendances as $attendance) {
+                $baseWage = $attendance->shift ? $attendance->shift->wage_per_shift : 50000;
+                
+                // Cek hari libur menggunakan API libur.deno.dev berdasarkan tanggal shift
+                $checkDate = $attendance->shift ? $attendance->shift->shift_date : $attendance->attendance_date;
+                if ($this->isHoliday($checkDate->format('Y-m-d'))) {
+                    $totalSalary += 100000; // Total fee Rp100.000,00 saat hari libur
+                } else {
+                    $totalSalary += $baseWage;
+                }
+            }
 
             // Simpan atau update record payroll
             Payroll::updateOrCreate(
@@ -171,21 +184,35 @@ class PayrollController extends Controller
 
         // Jika tidak ada data, hitung ulang dari attendances
         if ($payrolls->isEmpty()) {
-            $attendanceCounts = Attendance::query()
-                ->select('employee_id', DB::raw('COUNT(*) as hadir_count'))
-                ->where('status', 'hadir')
-                ->whereBetween('attendance_date', [$periodStart, $periodEnd])
-                ->groupBy('employee_id')
-                ->pluck('hadir_count', 'employee_id');
-
-            $payrollData = Employee::whereIn('id', $attendanceCounts->keys())
+            $attendances = Attendance::where('status', 'hadir')
+                ->whereHas('shift', function ($q) use ($periodStart, $periodEnd) {
+                    $q->whereBetween('shift_date', [$periodStart, $periodEnd]);
+                })
+                ->with('shift')
                 ->get()
-                ->map(function ($employee) use ($attendanceCounts, $periodStart, $periodEnd) {
-                    $totalAttendance = $attendanceCounts->get($employee->id, 0);
+                ->groupBy('employee_id');
+
+            $payrollData = Employee::whereIn('id', $attendances->keys())
+                ->get()
+                ->map(function ($employee) use ($attendances, $periodStart, $periodEnd) {
+                    $employeeAttendances = $attendances->get($employee->id, collect());
+                    $totalAttendance = $employeeAttendances->count();
+
+                    $totalSalary = 0;
+                    foreach ($employeeAttendances as $attendance) {
+                        $baseWage = $attendance->shift ? $attendance->shift->wage_per_shift : 50000;
+                        $checkDate = $attendance->shift ? $attendance->shift->shift_date : $attendance->attendance_date;
+                        if ($this->isHoliday($checkDate->format('Y-m-d'))) {
+                            $totalSalary += 100000;
+                        } else {
+                            $totalSalary += $baseWage;
+                        }
+                    }
+
                     return [
                         'employee_name'    => $employee->employee_name,
                         'total_attendance' => $totalAttendance,
-                        'total_salary'     => $totalAttendance * 50000,
+                        'total_salary'     => $totalSalary,
                     ];
                 });
         } else {
@@ -276,12 +303,25 @@ class PayrollController extends Controller
             ->first();
 
         if (! $payroll) {
-            $totalAttendance = Attendance::where('employee_id', $employee->id)
+            $employeeAttendances = Attendance::where('employee_id', $employee->id)
                 ->where('status', 'hadir')
-                ->whereBetween('attendance_date', [$periodStart, $periodEnd])
-                ->count();
+                ->whereHas('shift', function ($q) use ($periodStart, $periodEnd) {
+                    $q->whereBetween('shift_date', [$periodStart, $periodEnd]);
+                })
+                ->with('shift')
+                ->get();
 
-            $totalSalary = $totalAttendance * 50000;
+            $totalAttendance = $employeeAttendances->count();
+            $totalSalary = 0;
+            foreach ($employeeAttendances as $attendance) {
+                $baseWage = $attendance->shift ? $attendance->shift->wage_per_shift : 50000;
+                $checkDate = $attendance->shift ? $attendance->shift->shift_date : $attendance->attendance_date;
+                if ($this->isHoliday($checkDate->format('Y-m-d'))) {
+                    $totalSalary += 100000;
+                } else {
+                    $totalSalary += $baseWage;
+                }
+            }
 
             $payroll = Payroll::updateOrCreate(
                 [
@@ -297,13 +337,19 @@ class PayrollController extends Controller
         }
 
         // Convert salary if currency is not IDR
+        $avgWage = $payroll->total_attendance > 0 ? ($payroll->total_salary / $payroll->total_attendance) : 50000;
+        $baseWage = 50000;
+        $holidayWage = 100000;
         $convertedSalary = $payroll->total_salary;
-        $convertedWagePerShift = 50000;
+        $convertedWagePerShift = $avgWage;
+        
         if ($currency !== 'IDR') {
             $exchangeRate = $this->getExchangeRate($currency);
             if ($exchangeRate) {
                 $convertedSalary = round($payroll->total_salary * $exchangeRate, 2);
-                $convertedWagePerShift = round(50000 * $exchangeRate, 2);
+                $convertedWagePerShift = round($avgWage * $exchangeRate, 2);
+                $baseWage = round(50000 * $exchangeRate, 2);
+                $holidayWage = round(100000 * $exchangeRate, 2);
             }
         }
 
@@ -317,6 +363,8 @@ class PayrollController extends Controller
             'printedAt'      => $printedAt,
             'convertedSalary' => $convertedSalary,
             'convertedWagePerShift' => $convertedWagePerShift,
+            'baseWage'       => $baseWage,
+            'holidayWage'    => $holidayWage,
         ]);
 
         $filename = "slip-gaji-{$employee->employee_name}-{$periodStart}-sd-{$periodEnd}.pdf";
@@ -344,5 +392,51 @@ class PayrollController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Mengambil daftar hari libur nasional Indonesia dari libur.deno.dev API berdasarkan tahun.
+     * Hasil di-cache selama 24 jam untuk menghindari kuota API terbuang.
+     *
+     * @param string $year
+     * @return array Array berisi tanggal format 'Y-m-d' sebagai key, dan nama libur sebagai value.
+     */
+    private function getHolidays(string $year): array
+    {
+        return \Cache::remember("indonesian_holidays_{$year}", 86400, function () use ($year) {
+            try {
+                $response = Http::timeout(10)->get('https://libur.deno.dev/api', [
+                    'year' => $year
+                ]);
+
+                if ($response->successful()) {
+                    $data = $response->json();
+                    $holidays = [];
+                    if (is_array($data)) {
+                        foreach ($data as $item) {
+                            if (isset($item['date'])) {
+                                $holidays[$item['date']] = $item['name'] ?? 'Hari Libur Nasional';
+                            }
+                        }
+                    }
+                    return $holidays;
+                }
+            } catch (\Exception $e) {
+                // Return empty so it's not cached permanently if it fails
+            }
+
+            return [];
+        });
+    }
+
+    /**
+     * Memeriksa apakah suatu tanggal merupakan hari libur.
+     */
+    private function isHoliday(string $dateStr): bool
+    {
+        // Cek apakah libur nasional dari API
+        $year = substr($dateStr, 0, 4);
+        $holidays = $this->getHolidays($year);
+        return isset($holidays[$dateStr]);
     }
 }
