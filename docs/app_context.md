@@ -18,6 +18,7 @@ Dokumen ini berisi informasi menyeluruh tentang arsitektur, basis data, endpoint
 | **Autentikasi** | Token-Based (Laravel Sanctum ^3.3) & Lokal (Biometrik Sidik Jari) |
 | **Integrasi AI** | Groq API / Llama 3.1 8B (Layanan Pelanggan Kasir/Minimarket) |
 | **API Kurs Eksternal** | Exchange Rate API (Realtime IDR Converter) |
+| **API Hari Libur** | Libur Deno Dev API (Daftar Hari Libur Nasional Indonesia) |
 
 ---
 
@@ -48,6 +49,7 @@ graph TD
     subgraph External [External Services]
         Exchange[Exchange Rate API]
         Groq[Groq AI Llama API]
+        Libur[Libur Deno Dev API]
     end
 
     UI --> Prov
@@ -58,6 +60,7 @@ graph TD
     Ctrl --> Mod
     Ctrl -->|Realtime Rates| Exchange
     Ctrl -->|Prompt & Message| Groq
+    Ctrl -->|Daftar Hari Libur| Libur
     Ctrl -->|Session History| Cache
     Mod --> DB
 ```
