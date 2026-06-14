@@ -1,0 +1,35 @@
+name: erp_app
+description: "A simple ERP attendance and payroll Flutter application."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.0.0
+  shared_preferences: ^2.0.18
+  dio: ^5.4.0
+  http: ^1.6.0
+  intl: ^0.18.0
+  sensors_plus: ^6.1.1
+  timezone: ^0.9.2
+  flutter_timezone: ^3.0.1
+  pdf: ^3.11.2
+  open_file: ^3.5.10
+  local_auth: ^2.1.0
+  geolocator: ^10.1.0
+  flutter_local_notifications: ^18.0.1
+  image_picker: ^1.0.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  glados: ^1.1.7
+  local_auth_platform_interface: ^1.1.0
+
+flutter:
+  uses-material-design: true
