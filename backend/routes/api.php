@@ -50,6 +50,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Currency Conversion
     Route::post('currency/convert', [\App\Http\Controllers\Api\CurrencyController::class, 'convert']);
 
+    // AI Analytics
+    Route::get('analytics/performance', [\App\Http\Controllers\Api\AnalyticsController::class, 'performance']);
+
     // Chatbot (Gemini AI)
     Route::get('chatbot/scenarios', [\App\Http\Controllers\Api\ChatbotController::class, 'scenarios']);
     Route::post('chatbot/message', [\App\Http\Controllers\Api\ChatbotController::class, 'message']);

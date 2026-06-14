@@ -31,6 +31,8 @@ import 'screens/profile_screen.dart';
 import 'screens/kesan_pesan_screen.dart';
 import 'screens/quiz_screen.dart';
 import 'services/push_notification_service.dart';
+import 'services/analytics_service.dart';
+import 'screens/analytics_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -48,6 +50,7 @@ void main() async {
   final chatbotService = ChatbotService(apiClient: apiClient);
   final biometricService = BiometricService();
   final locationService = LocationService();
+  final analyticsService = AnalyticsService(apiClient: apiClient);
   runApp(MainApp(
     authService: authService,
     employeeService: employeeService,
@@ -58,6 +61,7 @@ void main() async {
     chatbotService: chatbotService,
     biometricService: biometricService,
     locationService: locationService,
+    analyticsService: analyticsService,
   ));
 }
 
@@ -71,6 +75,7 @@ class MainApp extends StatelessWidget {
   final ChatbotService chatbotService;
   final BiometricService biometricService;
   final LocationService locationService;
+  final AnalyticsService analyticsService;
 
   const MainApp({
     super.key,
@@ -83,6 +88,7 @@ class MainApp extends StatelessWidget {
     required this.chatbotService,
     required this.biometricService,
     required this.locationService,
+    required this.analyticsService,
   });
 
   @override
@@ -161,6 +167,9 @@ class MainApp extends StatelessWidget {
       AppRoutes.profile: (context) => const ProfileScreen(),
       AppRoutes.kesanPesan: (context) => const KesanPesanScreen(),
       AppRoutes.quiz: (context) => const QuizScreen(),
+      AppRoutes.analytics: (context) => AnalyticsScreen(
+            analyticsService: analyticsService,
+          ),
     };
 
     // Allow access to login without authentication
@@ -184,6 +193,7 @@ class MainApp extends StatelessWidget {
     final isAdminOnlyRoute = [
       AppRoutes.employees,
       AppRoutes.employeeForm,
+      AppRoutes.analytics,
     ].contains(settings.name);
 
     if (isAdminOnlyRoute && user?.role != 'admin') {

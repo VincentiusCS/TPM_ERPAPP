@@ -284,8 +284,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final user = context.watch<AuthProvider>().currentUser;
     final isAdmin = user?.role == 'admin';
     final modules = [
-      if (isAdmin)
+      if (isAdmin) ...[
         _ModuleItem(icon: Icons.group_outlined, label: 'Staff', route: AppRoutes.employees),
+        _ModuleItem(icon: Icons.analytics_outlined, label: 'AI Analytics', route: AppRoutes.analytics),
+      ],
       _ModuleItem(icon: Icons.schedule_outlined, label: 'Shifts', route: AppRoutes.shifts),
       _ModuleItem(icon: Icons.fact_check_outlined, label: 'Attendance', route: AppRoutes.attendance),
       _ModuleItem(icon: Icons.payments_outlined, label: 'Payroll', route: AppRoutes.payroll),
