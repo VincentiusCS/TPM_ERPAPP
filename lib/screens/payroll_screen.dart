@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import 'package:provider/provider.dart';
 
+import '../providers/auth_provider.dart';
 import '../providers/payroll_provider.dart';
 import '../services/push_notification_service.dart';
 import '../utils/notification_helper.dart';
@@ -157,6 +158,9 @@ class _PayrollScreenState extends State<PayrollScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<PayrollProvider>();
+    final user = context.watch<AuthProvider>().currentUser;
+    final isAdmin = user?.role == 'admin';
+
     return Scaffold(
       backgroundColor: const Color(0xFFFDF8F8),
       body: SafeArea(
@@ -170,17 +174,25 @@ class _PayrollScreenState extends State<PayrollScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 20),
-                    const Text('Payroll Calculation', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: Color(0xFF1C1B1B), letterSpacing: -0.6)),
+                    Text(
+                      isAdmin ? 'Payroll Calculation' : 'My Payroll',
+                      style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: Color(0xFF1C1B1B), letterSpacing: -0.6),
+                    ),
                     const SizedBox(height: 24),
                     _buildPeriodSection(),
                     const SizedBox(height: 16),
                     _buildCurrencyTimezoneSection(),
                     const SizedBox(height: 16),
-                    _buildSearchField(),
-                    const SizedBox(height: 16),
+                    if (isAdmin) ...[
+                      _buildSearchField(),
+                      const SizedBox(height: 16),
+                    ],
                     _buildActionRow(provider),
                     const SizedBox(height: 24),
-                    if (provider.payrollResults.isNotEmpty) ...[_buildStatsCards(provider), const SizedBox(height: 24)],
+                    if (provider.payrollResults.isNotEmpty && isAdmin) ...[
+                      _buildStatsCards(provider),
+                      const SizedBox(height: 24),
+                    ],
                     _buildResultsSection(provider),
                     const SizedBox(height: 24),
                   ],
@@ -195,6 +207,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
   }
 
   Widget _buildAppBar(BuildContext context) {
+    final user = context.watch<AuthProvider>().currentUser;
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -202,7 +215,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
         children: [
           Container(width: 36, height: 36, decoration: BoxDecoration(color: const Color(0xFF1C1B1B), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.person, color: Colors.white, size: 20)),
           const SizedBox(width: 12),
-          const Text('Admin Portal', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF1C1B1B))),
+          Text(user?.role == 'admin' ? 'Admin Portal' : 'Employee Portal', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF1C1B1B))),
           const Spacer(),
         ],
       ),
@@ -310,6 +323,9 @@ class _PayrollScreenState extends State<PayrollScreen> {
   }
 
   Widget _buildActionRow(PayrollProvider provider) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final isAdmin = user?.role == 'admin';
+
     return Row(
       children: [
         Expanded(
@@ -322,7 +338,7 @@ class _PayrollScreenState extends State<PayrollScreen> {
             ),
           ),
         ),
-        if (provider.payrollResults.isNotEmpty) ...[
+        if (provider.payrollResults.isNotEmpty && isAdmin) ...[
           const SizedBox(width: 12),
           SizedBox(
             height: 48,

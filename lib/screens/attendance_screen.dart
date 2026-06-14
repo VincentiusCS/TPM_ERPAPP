@@ -5,8 +5,10 @@ import '../models/attendance.dart';
 import '../models/employee.dart';
 import '../models/shift.dart';
 import '../providers/attendance_provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/employee_provider.dart';
 import '../services/shift_service.dart';
+import '../services/push_notification_service.dart';
 import '../utils/notification_helper.dart';
 import '../widgets/app_bottom_nav.dart';
 
@@ -34,10 +36,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _loadData() async {
+    final user = context.read<AuthProvider>().currentUser;
+    final isAdmin = user?.role == 'admin';
+
     final employeeProvider = context.read<EmployeeProvider>();
     final attendanceProvider = context.read<AttendanceProvider>();
-    await employeeProvider.fetchAll();
-    await attendanceProvider.fetchAll();
+
+    if (isAdmin) {
+      await employeeProvider.fetchAll();
+      await attendanceProvider.fetchAll();
+    } else {
+      _filterEmployeeId = user?.employeeId;
+      await attendanceProvider.fetchAll(employeeId: user?.employeeId);
+    }
     await _loadShifts();
   }
 
@@ -107,11 +118,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   void _showAddAttendanceDialog() {
+    final user = context.read<AuthProvider>().currentUser;
+    final isAdmin = user?.role == 'admin';
+
     showDialog(
       context: context,
       builder: (dialogContext) => _AttendanceFormDialog(
-        employees: context.read<EmployeeProvider>().employees,
+        employees: isAdmin ? context.read<EmployeeProvider>().employees : [],
         shifts: _shifts,
+        preselectedEmployeeId: user?.employeeId,
         onSave: (employeeId, shiftId, date, status) async {
           final provider = context.read<AttendanceProvider>();
           final success = await provider.create(
@@ -123,10 +138,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           if (success && mounted) {
             showSuccessPopup(context, 'Presensi berhasil dicatat');
             await _applyFilters();
+          } else if (!success) {
+            final errorMsg = provider.errorMessage ?? 'Gagal mencatat presensi';
+            PushNotificationService.show(
+              title: 'Presensi Gagal',
+              body: errorMsg,
+            );
           }
           return success;
         },
-        getErrorMessage: () => context.read<AttendanceProvider>().errorMessage,
         getFieldErrors: () => context.read<AttendanceProvider>().fieldErrors,
       ),
     );
@@ -137,7 +157,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       context: context,
       builder: (dialogContext) => _EditAttendanceDialog(
         attendance: attendance,
-        employeeName: _getEmployeeName(attendance.employeeId),
+        employeeName: attendance.employeeName ?? _getEmployeeName(attendance.employeeId),
         onSave: (status) async {
           final provider = context.read<AttendanceProvider>();
           final success = await provider.update(
@@ -147,6 +167,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           if (success && mounted) {
             showSuccessPopup(context, 'Status presensi berhasil diubah');
             await _applyFilters();
+          } else if (!success) {
+            final errorMsg = provider.errorMessage ?? 'Gagal mengubah status presensi';
+            PushNotificationService.show(
+              title: 'Gagal Mengubah Presensi',
+              body: errorMsg,
+            );
           }
           return success;
         },
@@ -205,6 +231,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildAppBar() {
+    final user = context.watch<AuthProvider>().currentUser;
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -212,7 +239,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         children: [
           Container(width: 36, height: 36, decoration: BoxDecoration(color: const Color(0xFF1C1B1B), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.person, color: Colors.white, size: 20)),
           const SizedBox(width: 12),
-          const Text('Admin Portal', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF1C1B1B))),
+          Text(user?.role == 'admin' ? 'Admin Portal' : 'Employee Portal', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF1C1B1B))),
           const Spacer(),
         ],
       ),
@@ -220,32 +247,37 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildFilterSection(EmployeeProvider employeeProvider) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final isAdmin = user?.role == 'admin';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Employee filter
-        Container(
-          decoration: BoxDecoration(color: const Color(0xFFF7F3F2), borderRadius: BorderRadius.circular(12)),
-          child: DropdownButtonFormField<int?>(
-            key: ValueKey('filter_employee_$_filterEmployeeId'),
-            initialValue: _filterEmployeeId,
-            decoration: const InputDecoration(
-              labelText: 'Employee',
-              labelStyle: TextStyle(color: Color(0xFF444748), fontSize: 14),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        if (isAdmin) ...[
+          // Employee filter
+          Container(
+            decoration: BoxDecoration(color: const Color(0xFFF7F3F2), borderRadius: BorderRadius.circular(12)),
+            child: DropdownButtonFormField<int?>(
+              key: ValueKey('filter_employee_$_filterEmployeeId'),
+              initialValue: _filterEmployeeId,
+              decoration: const InputDecoration(
+                labelText: 'Employee',
+                labelStyle: TextStyle(color: Color(0xFF444748), fontSize: 14),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              items: [
+                const DropdownMenuItem<int?>(value: null, child: Text('All Employees')),
+                ...employeeProvider.employees.map((e) => DropdownMenuItem<int?>(value: e.id, child: Text(e.name))),
+              ],
+              onChanged: (value) {
+                setState(() => _filterEmployeeId = value);
+                _applyFilters();
+              },
             ),
-            items: [
-              const DropdownMenuItem<int?>(value: null, child: Text('All Employees')),
-              ...employeeProvider.employees.map((e) => DropdownMenuItem<int?>(value: e.id, child: Text(e.name))),
-            ],
-            onChanged: (value) {
-              setState(() => _filterEmployeeId = value);
-              _applyFilters();
-            },
           ),
-        ),
-        const SizedBox(height: 12),
+          const SizedBox(height: 12),
+        ],
         // Date range
         Row(
           children: [
@@ -272,7 +304,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 ),
               ),
             ),
-            if (_filterEmployeeId != null || _filterDateRange != null) ...[
+            if ((isAdmin && _filterEmployeeId != null) || _filterDateRange != null) ...[
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: _clearFilters,
@@ -311,7 +343,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildAttendanceRow(Attendance attendance) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final isAdmin = user?.role == 'admin';
     final isPresent = attendance.status == 'hadir';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
@@ -338,7 +373,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _getEmployeeName(attendance.employeeId),
+                  attendance.employeeName ?? _getEmployeeName(attendance.employeeId),
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1C1B1B)),
                 ),
                 const SizedBox(height: 2),
@@ -364,11 +399,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => _showEditAttendanceDialog(attendance),
-            child: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF444748)),
-          ),
+          if (isAdmin) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => _showEditAttendanceDialog(attendance),
+              child: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF444748)),
+            ),
+          ],
         ],
       ),
     );
@@ -380,15 +417,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 class _AttendanceFormDialog extends StatefulWidget {
   final List<Employee> employees;
   final List<Shift> shifts;
+  final int? preselectedEmployeeId;
   final Future<bool> Function(int employeeId, int shiftId, DateTime date, String status) onSave;
-  final String? Function() getErrorMessage;
   final Map<String, List<String>> Function() getFieldErrors;
 
   const _AttendanceFormDialog({
     required this.employees,
     required this.shifts,
+    this.preselectedEmployeeId,
     required this.onSave,
-    required this.getErrorMessage,
     required this.getFieldErrors,
   });
 
@@ -404,6 +441,12 @@ class _AttendanceFormDialogState extends State<_AttendanceFormDialog> {
   bool _isSaving = false;
   String? _employeeError;
   String? _shiftError;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedEmployeeId = widget.preselectedEmployeeId;
+  }
 
   List<Shift> get _filteredShifts {
     if (_selectedEmployeeId == null) return [];
@@ -441,7 +484,6 @@ class _AttendanceFormDialogState extends State<_AttendanceFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final serverError = widget.getErrorMessage();
     final fieldErrors = widget.getFieldErrors();
 
     return AlertDialog(
@@ -453,20 +495,22 @@ class _AttendanceFormDialogState extends State<_AttendanceFormDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DropdownButtonFormField<int?>(
-              key: ValueKey('form_employee_$_selectedEmployeeId'),
-              initialValue: _selectedEmployeeId,
-              decoration: InputDecoration(
-                labelText: 'Karyawan *',
-                filled: true,
-                fillColor: const Color(0xFFF7F3F2),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                errorText: _employeeError ?? fieldErrors['employee_id']?.firstOrNull,
+            if (widget.preselectedEmployeeId == null) ...[
+              DropdownButtonFormField<int?>(
+                key: ValueKey('form_employee_$_selectedEmployeeId'),
+                initialValue: _selectedEmployeeId,
+                decoration: InputDecoration(
+                  labelText: 'Karyawan *',
+                  filled: true,
+                  fillColor: const Color(0xFFF7F3F2),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  errorText: _employeeError ?? fieldErrors['employee_id']?.firstOrNull,
+                ),
+                items: widget.employees.map((e) => DropdownMenuItem<int?>(value: e.id, child: Text(e.name))).toList(),
+                onChanged: (value) { setState(() { _selectedEmployeeId = value; _selectedShiftId = null; _employeeError = null; }); },
               ),
-              items: widget.employees.map((e) => DropdownMenuItem<int?>(value: e.id, child: Text(e.name))).toList(),
-              onChanged: (value) { setState(() { _selectedEmployeeId = value; _selectedShiftId = null; _employeeError = null; }); },
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
+            ],
             DropdownButtonFormField<int?>(
               key: ValueKey('form_shift_${_selectedEmployeeId}_$_selectedShiftId'),
               initialValue: _selectedShiftId,
@@ -508,10 +552,6 @@ class _AttendanceFormDialogState extends State<_AttendanceFormDialog> {
               ],
               onChanged: (value) { if (value != null) setState(() => _selectedStatus = value); },
             ),
-            if (serverError != null) ...[
-              const SizedBox(height: 12),
-              Text(serverError, style: const TextStyle(color: Color(0xFFBA1A1A), fontSize: 12)),
-            ],
           ],
         ),
       ),

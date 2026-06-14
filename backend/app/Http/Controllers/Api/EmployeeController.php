@@ -11,6 +11,21 @@ use Illuminate\Validation\Rule;
 class EmployeeController extends Controller
 {
     /**
+     * Protect EmployeeController: Only admin is authorized.
+     */
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if ($request->user()->role !== 'admin') {
+                return response()->json([
+                    'message' => 'Unauthorized. Admin role required.',
+                ], 403);
+            }
+            return $next($request);
+        });
+    }
+
+    /**
      * GET /api/v1/employees
      *
      * Mengembalikan daftar seluruh karyawan.
@@ -19,7 +34,7 @@ class EmployeeController extends Controller
      */
     public function index(): JsonResponse
     {
-        $employees = Employee::all();
+        $employees = Employee::with('user:id,employee_id,email')->get();
 
         return response()->json($employees, 200);
     }
@@ -27,7 +42,7 @@ class EmployeeController extends Controller
     /**
      * POST /api/v1/employees
      *
-     * Menyimpan karyawan baru ke database.
+     * Menyimpan karyawan baru ke database beserta akun User terkait.
      * Field wajib tidak boleh kosong atau hanya whitespace.
      *
      * Validates: Requirement 2.2, 2.3
@@ -51,6 +66,8 @@ class EmployeeController extends Controller
                 }
             }],
             'status' => ['required', Rule::in(['aktif', 'nonaktif'])],
+            'email' => ['required', 'email', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:6'],
         ]);
 
         // Trim whitespace from string fields before saving
@@ -58,7 +75,22 @@ class EmployeeController extends Controller
         $validated['phone']         = trim($validated['phone']);
         $validated['address']       = trim($validated['address']);
 
-        $employee = Employee::create($validated);
+        $employee = Employee::create([
+            'employee_name' => $validated['employee_name'],
+            'phone'         => $validated['phone'],
+            'address'       => $validated['address'],
+            'status'        => $validated['status'],
+        ]);
+
+        \App\Models\User::create([
+            'name'        => $employee->employee_name,
+            'email'       => $validated['email'],
+            'password'    => \Illuminate\Support\Facades\Hash::make($validated['password']),
+            'role'        => 'karyawan',
+            'employee_id' => $employee->id,
+        ]);
+
+        $employee->load('user:id,employee_id,email');
 
         return response()->json($employee, 201);
     }
@@ -66,7 +98,7 @@ class EmployeeController extends Controller
     /**
      * PUT /api/v1/employees/{id}
      *
-     * Memperbarui data karyawan yang sudah ada.
+     * Memperbarui data karyawan yang sudah ada beserta akun User terkait.
      * Field wajib tidak boleh kosong atau hanya whitespace.
      *
      * Validates: Requirement 2.4
@@ -74,6 +106,7 @@ class EmployeeController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         $employee = Employee::findOrFail($id);
+        $user = \App\Models\User::where('employee_id', $employee->id)->first();
 
         $validated = $request->validate([
             'employee_name' => ['required', 'string', 'filled', function ($attribute, $value, $fail) {
@@ -92,6 +125,8 @@ class EmployeeController extends Controller
                 }
             }],
             'status' => ['required', Rule::in(['aktif', 'nonaktif'])],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($user ? $user->id : null)],
+            'password' => ['nullable', 'string', 'min:6'],
         ]);
 
         // Trim whitespace from string fields before saving
@@ -99,7 +134,31 @@ class EmployeeController extends Controller
         $validated['phone']         = trim($validated['phone']);
         $validated['address']       = trim($validated['address']);
 
-        $employee->update($validated);
+        $employee->update([
+            'employee_name' => $validated['employee_name'],
+            'phone'         => $validated['phone'],
+            'address'       => $validated['address'],
+            'status'        => $validated['status'],
+        ]);
+
+        if ($user) {
+            $user->name = $employee->employee_name;
+            $user->email = $validated['email'];
+            if (!empty($validated['password'])) {
+                $user->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
+            }
+            $user->save();
+        } else {
+            \App\Models\User::create([
+                'name'        => $employee->employee_name,
+                'email'       => $validated['email'],
+                'password'    => \Illuminate\Support\Facades\Hash::make($validated['password'] ?? 'password123'),
+                'role'        => 'karyawan',
+                'employee_id' => $employee->id,
+            ]);
+        }
+
+        $employee->load('user:id,employee_id,email');
 
         return response()->json($employee, 200);
     }

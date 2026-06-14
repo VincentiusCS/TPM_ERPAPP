@@ -118,6 +118,36 @@ class AttendanceTest extends TestCase
     }
 
     /**
+     * Test store presensi duplikat untuk shift yang sama oleh karyawan yang sama -> HTTP 409.
+     */
+    public function test_store_duplicate_attendance_returns_409(): void
+    {
+        $token  = $this->actingAsAdmin();
+        $models = $this->createEmployeeAndShift();
+
+        // Presensi pertama
+        $this->withToken($token)->postJson('/api/v1/attendances', [
+            'employee_id'     => $models['employee']->id,
+            'shift_id'        => $models['shift']->id,
+            'attendance_date' => '2025-07-15',
+            'status'          => 'hadir',
+        ])->assertStatus(201);
+
+        // Presensi kedua (duplikat)
+        $response = $this->withToken($token)->postJson('/api/v1/attendances', [
+            'employee_id'     => $models['employee']->id,
+            'shift_id'        => $models['shift']->id,
+            'attendance_date' => '2025-07-15',
+            'status'          => 'hadir',
+        ]);
+
+        $response->assertStatus(409)
+            ->assertJsonFragment([
+                'message' => 'Karyawan sudah melakukan presensi pada shift ini.',
+            ]);
+    }
+
+    /**
      * Test store tanpa employee_id → HTTP 422.
      *
      * Validates: Requirement 4.5

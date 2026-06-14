@@ -60,12 +60,20 @@ class SensorUtil {
     final double x = event.x.abs();
     final double y = event.y.abs();
 
-    AppOrientation newOrientation;
+    AppOrientation newOrientation = _currentOrientation;
 
-    if (x > y) {
-      newOrientation = AppOrientation.landscape;
+    // Gunakan ambang batas (hysteresis threshold) sebesar 2.0 m/s^2
+    // agar rotasi tidak terlalu sensitif dan berganti secara tidak sengaja
+    const double threshold = 2.0;
+
+    if (_currentOrientation == AppOrientation.portrait) {
+      if (x > y + threshold) {
+        newOrientation = AppOrientation.landscape;
+      }
     } else {
-      newOrientation = AppOrientation.portrait;
+      if (y > x + threshold) {
+        newOrientation = AppOrientation.portrait;
+      }
     }
 
     if (newOrientation != _currentOrientation) {

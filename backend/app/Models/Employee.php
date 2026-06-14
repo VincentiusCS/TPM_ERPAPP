@@ -21,6 +21,14 @@ class Employee extends Model
     ];
 
     /**
+     * Get the user associated with the employee.
+     */
+    public function user()
+    {
+        return $this->hasOne(User::class);
+    }
+
+    /**
      * Get the shifts for this employee.
      */
     public function shifts()

@@ -179,6 +179,20 @@ class MainApp extends StatelessWidget {
       );
     }
 
+    // Role guard: block non-admin users from accessing staff management
+    final user = authProvider.currentUser;
+    final isAdminOnlyRoute = [
+      AppRoutes.employees,
+      AppRoutes.employeeForm,
+    ].contains(settings.name);
+
+    if (isAdminOnlyRoute && user?.role != 'admin') {
+      return MaterialPageRoute(
+        builder: (context) => const DashboardScreen(),
+        settings: const RouteSettings(name: AppRoutes.dashboard),
+      );
+    }
+
     // Authenticated: resolve the requested route
     final builder = routeBuilders[settings.name];
     if (builder != null) {

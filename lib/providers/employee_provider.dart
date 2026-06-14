@@ -58,6 +58,8 @@ class EmployeeProvider extends ChangeNotifier {
     required String phone,
     required String address,
     required String status,
+    required String email,
+    required String password,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -70,6 +72,8 @@ class EmployeeProvider extends ChangeNotifier {
         phone: phone,
         address: address,
         status: status,
+        email: email,
+        password: password,
       );
       _employees.add(newEmployee);
       return true;
@@ -93,6 +97,8 @@ class EmployeeProvider extends ChangeNotifier {
       phone: employee.phone,
       address: employee.address,
       status: employee.status,
+      email: employee.email ?? '',
+      password: '',
     );
   }
 
@@ -104,6 +110,8 @@ class EmployeeProvider extends ChangeNotifier {
     required String phone,
     required String address,
     required String status,
+    required String email,
+    String? password,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -117,6 +125,8 @@ class EmployeeProvider extends ChangeNotifier {
         phone: phone,
         address: address,
         status: status,
+        email: email,
+        password: password,
       );
       final index = _employees.indexWhere((e) => e.id == updated.id);
       if (index >= 0) {
@@ -144,6 +154,7 @@ class EmployeeProvider extends ChangeNotifier {
       phone: employee.phone,
       address: employee.address,
       status: employee.status,
+      email: employee.email ?? '',
     );
   }
 

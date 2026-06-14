@@ -4,6 +4,7 @@ class User {
   final String email;
   final String role;
   final String? nim;
+  final int? employeeId;
 
   User({
     required this.id,
@@ -11,6 +12,7 @@ class User {
     required this.email,
     required this.role,
     this.nim = '123220144',
+    this.employeeId,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class User {
       email: json['email'] as String,
       role: json['role'] as String,
       nim: json['nim'] as String? ?? '123220144',
+      employeeId: json['employee_id'] as int?,
     );
   }
 
@@ -30,6 +33,7 @@ class User {
       'email': email,
       'role': role,
       'nim': nim,
+      'employee_id': employeeId,
     };
   }
 }

@@ -47,6 +47,8 @@ class EmployeeTest extends TestCase
             'phone'         => '08123456789',
             'address'       => 'Jl. Merdeka No. 1, Jakarta',
             'status'        => 'aktif',
+            'email'         => 'budi.santoso@example.com',
+            'password'      => 'password123',
         ];
     }
 
@@ -275,6 +277,7 @@ class EmployeeTest extends TestCase
             'phone'         => '08999999999',
             'address'       => 'Alamat Baru',
             'status'        => 'nonaktif',
+            'email'         => 'nama.baru@example.com',
         ]);
 
         $response->assertStatus(200)
@@ -321,6 +324,7 @@ class EmployeeTest extends TestCase
             'phone'         => '',
             'address'       => '',
             'status'        => 'aktif',
+            'email'         => 'some.email@example.com',
         ]);
 
         $response->assertStatus(422)

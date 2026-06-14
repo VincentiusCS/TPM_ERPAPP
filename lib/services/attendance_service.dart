@@ -63,11 +63,13 @@ class AttendanceService {
       // The API returns the attendance object directly
       return Attendance.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 422) {
-        final body = e.response?.data as Map<String, dynamic>?;
+      final responseData = e.response?.data;
+      if (responseData is Map<String, dynamic> && responseData.containsKey('message')) {
         throw AttendanceValidationException(
-          message: body?['message'] as String? ?? 'Validasi gagal',
-          fieldErrors: _parseFieldErrors(body?['errors']),
+          message: responseData['message']?.toString() ?? 'Validasi gagal',
+          fieldErrors: e.response?.statusCode == 422
+              ? _parseFieldErrors(responseData['errors'])
+              : const {},
         );
       }
       rethrow;
@@ -90,11 +92,13 @@ class AttendanceService {
       // The API returns the attendance object directly
       return Attendance.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 422) {
-        final body = e.response?.data as Map<String, dynamic>?;
+      final responseData = e.response?.data;
+      if (responseData is Map<String, dynamic> && responseData.containsKey('message')) {
         throw AttendanceValidationException(
-          message: body?['message'] as String? ?? 'Validasi gagal',
-          fieldErrors: _parseFieldErrors(body?['errors']),
+          message: responseData['message']?.toString() ?? 'Validasi gagal',
+          fieldErrors: e.response?.statusCode == 422
+              ? _parseFieldErrors(responseData['errors'])
+              : const {},
         );
       }
       rethrow;

@@ -3,12 +3,14 @@ class Shift {
   final int employeeId;
   final DateTime shiftDate;
   final double wagePerShift;
+  final String? employeeName;
 
   Shift({
     required this.id,
     required this.employeeId,
     required this.shiftDate,
     required this.wagePerShift,
+    this.employeeName,
   });
 
   factory Shift.fromJson(Map<String, dynamic> json) {
@@ -17,6 +19,7 @@ class Shift {
       employeeId: json['employee_id'] as int,
       shiftDate: DateTime.parse(json['shift_date'] as String),
       wagePerShift: double.parse(json['wage_per_shift'].toString()),
+      employeeName: json['employee']?['employee_name'] as String?,
     );
   }
 

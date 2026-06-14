@@ -35,10 +35,13 @@ class PayrollController extends Controller
         $periodStart = $request->input('period_start');
         $periodEnd   = $request->input('period_end');
         $search      = $request->input('search');
+        $user        = $request->user();
 
-        // Ambil semua karyawan, filter berdasarkan nama jika ada parameter search
+        // Ambil semua karyawan, filter berdasarkan nama jika ada parameter search, atau saring ke karyawan bersangkutan jika role adalah karyawan
         $employeesQuery = Employee::query();
-        if ($search) {
+        if ($user->role === 'karyawan') {
+            $employeesQuery->where('id', $user->employee_id);
+        } elseif ($search) {
             $employeesQuery->where('employee_name', 'like', '%' . $search . '%');
         }
         $employees = $employeesQuery->get();
@@ -123,6 +126,12 @@ class PayrollController extends Controller
      */
     public function downloadReport(Request $request)
     {
+        if ($request->user()->role !== 'admin') {
+            return response()->json([
+                'message' => 'Unauthorized. Admin role required.',
+            ], 403);
+        }
+
         $request->validate([
             'period_start' => ['required', 'date'],
             'period_end'   => ['required', 'date', 'after_or_equal:period_start'],
@@ -224,6 +233,13 @@ class PayrollController extends Controller
      */
     public function downloadSlip(Request $request, $employee_id)
     {
+        $user = $request->user();
+        if ($user->role === 'karyawan' && $user->employee_id != $employee_id) {
+            return response()->json([
+                'message' => 'Unauthorized. You can only download your own slip.',
+            ], 403);
+        }
+
         $request->validate([
             'period_start' => ['required', 'date'],
             'period_end'   => ['required', 'date', 'after_or_equal:period_start'],

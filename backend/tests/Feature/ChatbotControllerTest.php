@@ -34,18 +34,16 @@ class ChatbotControllerTest extends TestCase
     }
 
     /**
-     * Fake Gemini API response yang berhasil.
+     * Fake Gemini/Groq API response yang berhasil.
      */
     private function fakeGeminiSuccess(string $replyText = 'Ini balasan dari AI.'): void
     {
         Http::fake([
-            'generativelanguage.googleapis.com/*' => Http::response([
-                'candidates' => [
+            'api.groq.com/*' => Http::response([
+                'choices' => [
                     [
-                        'content' => [
-                            'parts' => [
-                                ['text' => $replyText],
-                            ],
+                        'message' => [
+                            'content' => $replyText,
                         ],
                     ],
                 ],
@@ -54,12 +52,12 @@ class ChatbotControllerTest extends TestCase
     }
 
     /**
-     * Fake Gemini API response yang gagal.
+     * Fake Gemini/Groq API response yang gagal.
      */
     private function fakeGeminiFailure(): void
     {
         Http::fake([
-            'generativelanguage.googleapis.com/*' => Http::response(null, 500),
+            'api.groq.com/*' => Http::response(null, 500),
         ]);
     }
 
@@ -151,7 +149,7 @@ class ChatbotControllerTest extends TestCase
         $this->assertNotNull($history);
         $this->assertCount(2, $history); // user message + model reply
         $this->assertEquals('user', $history[0]['role']);
-        $this->assertEquals('model', $history[1]['role']);
+        $this->assertEquals('assistant', $history[1]['role']);
     }
 
     /**
@@ -254,10 +252,10 @@ class ChatbotControllerTest extends TestCase
         // Setup session history in cache
         $sessionId = 'feedback-session-test';
         $history = [
-            ['role' => 'user', 'parts' => [['text' => 'Maaf atas ketidaknyamanannya.']]],
-            ['role' => 'model', 'parts' => [['text' => 'Sudah terlambat 30 menit!']]],
-            ['role' => 'user', 'parts' => [['text' => 'Saya akan segera menyelesaikan masalah ini.']]],
-            ['role' => 'model', 'parts' => [['text' => 'Baiklah, saya tunggu.']]],
+            ['role' => 'user', 'content' => 'Maaf atas ketidaknyamanannya.'],
+            ['role' => 'assistant', 'content' => 'Sudah terlambat 30 menit!'],
+            ['role' => 'user', 'content' => 'Saya akan segera menyelesaikan masalah ini.'],
+            ['role' => 'assistant', 'content' => 'Baiklah, saya tunggu.'],
         ];
         Cache::put("chatbot_session_{$sessionId}", $history, now()->addHours(1));
 
@@ -307,8 +305,8 @@ class ChatbotControllerTest extends TestCase
         // Setup session history in cache
         $sessionId = 'feedback-fail-session';
         $history = [
-            ['role' => 'user', 'parts' => [['text' => 'Halo']]],
-            ['role' => 'model', 'parts' => [['text' => 'Balasan']]],
+            ['role' => 'user', 'content' => 'Halo'],
+            ['role' => 'assistant', 'content' => 'Balasan'],
         ];
         Cache::put("chatbot_session_{$sessionId}", $history, now()->addHours(1));
 

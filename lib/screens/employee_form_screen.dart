@@ -17,6 +17,8 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _addressController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _passwordController;
   String _status = 'aktif';
   Employee? _currentEmployee;
   bool _initialized = false;
@@ -36,11 +38,17 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
         _addressController = TextEditingController(
           text: _currentEmployee!.address,
         );
+        _emailController = TextEditingController(
+          text: _currentEmployee!.email ?? '',
+        );
+        _passwordController = TextEditingController();
         _status = _currentEmployee!.status;
       } else {
         _nameController = TextEditingController();
         _phoneController = TextEditingController();
         _addressController = TextEditingController();
+        _emailController = TextEditingController();
+        _passwordController = TextEditingController();
       }
       context.read<EmployeeProvider>().clearErrors();
     }
@@ -51,6 +59,8 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -71,17 +81,25 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
     final navigator = Navigator.of(context);
 
     final isEditing = _currentEmployee != null;
-    final employee = Employee(
-      id: _currentEmployee?.id ?? 0,
-      employeeName: _nameController.text.trim(),
-      phone: _phoneController.text.trim(),
-      address: _addressController.text.trim(),
-      status: _status,
-    );
 
     final success = isEditing
-        ? await provider.updateEmployee(employee)
-        : await provider.addEmployee(employee);
+        ? await provider.update(
+            id: _currentEmployee!.id,
+            employeeName: _nameController.text.trim(),
+            phone: _phoneController.text.trim(),
+            address: _addressController.text.trim(),
+            status: _status,
+            email: _emailController.text.trim(),
+            password: _passwordController.text.isNotEmpty ? _passwordController.text : null,
+          )
+        : await provider.create(
+            employeeName: _nameController.text.trim(),
+            phone: _phoneController.text.trim(),
+            address: _addressController.text.trim(),
+            status: _status,
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
 
     if (!mounted) return;
 
@@ -175,6 +193,38 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
                                 : null,
                       ),
                       const SizedBox(height: 16),
+                      _buildInputField(
+                        controller: _emailController,
+                        label: 'Email Karyawan',
+                        errorText: _getFieldError(fieldErrors, 'email'),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Email harus diisi';
+                          }
+                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                            return 'Format email tidak valid';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInputField(
+                        controller: _passwordController,
+                        label: isEditing ? 'Password Baru (kosongkan jika tidak diubah)' : 'Password Karyawan',
+                        errorText: _getFieldError(fieldErrors, 'password'),
+                        obscureText: true,
+                        validator: (value) {
+                          if (!isEditing && (value == null || value.isEmpty)) {
+                            return 'Password harus diisi';
+                          }
+                          if (value != null && value.isNotEmpty && value.length < 6) {
+                            return 'Password minimal 6 karakter';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
                       // Status dropdown
                       Container(
                         decoration: BoxDecoration(
@@ -253,6 +303,7 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
     String? errorText,
     TextInputType? keyboardType,
     int maxLines = 1,
+    bool obscureText = false,
     String? Function(String?)? validator,
   }) {
     return Container(
@@ -264,6 +315,7 @@ class _EmployeeFormScreenState extends State<EmployeeFormScreen> {
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,
+        obscureText: obscureText,
         style: const TextStyle(fontSize: 16, color: Color(0xFF1C1B1B)),
         decoration: InputDecoration(
           labelText: label,

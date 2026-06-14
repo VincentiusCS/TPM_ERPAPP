@@ -122,6 +122,8 @@ class EmployeePropertyTest extends TestCase
             'phone'         => '08123456789',
             'address'       => 'Jl. Merdeka No. 1',
             'status'        => 'aktif',
+            'email'         => 'budi.santoso@example.com',
+            'password'      => 'password123',
         ];
         $data[$field] = $invalidValue;
 
@@ -157,6 +159,7 @@ class EmployeePropertyTest extends TestCase
             'phone'         => '08123456789',
             'address'       => 'Jl. Merdeka No. 1',
             'status'        => 'aktif',
+            'email'         => 'budi.santoso@example.com',
         ];
         $data[$field] = $invalidValue;
 
@@ -187,6 +190,8 @@ class EmployeePropertyTest extends TestCase
             'phone'         => $invalidValue,
             'address'       => $invalidValue,
             'status'        => 'aktif',
+            'email'         => 'budi.santoso@example.com',
+            'password'      => 'password123',
         ]);
 
         // Properti: sistem HARUS menolak dengan HTTP 422
@@ -211,6 +216,8 @@ class EmployeePropertyTest extends TestCase
             'phone'         => '08123456789',
             'address'       => 'Jl. Merdeka No. 1',
             'status'        => 'aktif',
+            'email'         => 'budi.santoso@example.com',
+            'password'      => 'password123',
         ]);
 
         // Properti kebalikan: data valid HARUS diterima

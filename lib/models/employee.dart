@@ -4,6 +4,7 @@ class Employee {
   final String phone;
   final String address;
   final String status;
+  final String? email;
 
   Employee({
     required this.id,
@@ -11,6 +12,7 @@ class Employee {
     required this.phone,
     required this.address,
     required this.status,
+    this.email,
   });
 
   /// Convenience getter for display purposes.
@@ -23,6 +25,7 @@ class Employee {
       phone: json['phone'] as String,
       address: json['address'] as String,
       status: json['status'] as String,
+      email: json['user']?['email'] as String?,
     );
   }
 
@@ -33,6 +36,7 @@ class Employee {
       'phone': phone,
       'address': address,
       'status': status,
+      if (email != null) 'email': email,
     };
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/auth_provider.dart';
 import '../routes/app_routes.dart';
 
 /// Reusable bottom navigation bar used across main screens.
@@ -12,16 +14,22 @@ class AppBottomNav extends StatelessWidget {
 
   const AppBottomNav({super.key, this.activeIndex = -1});
 
-  static const _items = [
-    _NavItem(icon: Icons.dashboard_outlined, activeIcon: Icons.dashboard, label: 'Dashboard', route: AppRoutes.dashboard),
-    _NavItem(icon: Icons.group_outlined, activeIcon: Icons.group, label: 'Staff', route: AppRoutes.employees),
-    _NavItem(icon: Icons.fact_check_outlined, activeIcon: Icons.fact_check, label: 'Attendance', route: AppRoutes.attendance),
-    _NavItem(icon: Icons.payments_outlined, activeIcon: Icons.payments, label: 'Payroll', route: AppRoutes.payroll),
-    _NavItem(icon: Icons.forum_outlined, activeIcon: Icons.forum, label: 'Support', route: AppRoutes.chatbot),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    final isAdmin = authProvider.currentUser?.role == 'admin';
+
+    final items = [
+      const _NavItem(icon: Icons.dashboard_outlined, activeIcon: Icons.dashboard, label: 'Dashboard', route: AppRoutes.dashboard),
+      if (isAdmin)
+        const _NavItem(icon: Icons.group_outlined, activeIcon: Icons.group, label: 'Staff', route: AppRoutes.employees),
+      const _NavItem(icon: Icons.fact_check_outlined, activeIcon: Icons.fact_check, label: 'Attendance', route: AppRoutes.attendance),
+      const _NavItem(icon: Icons.payments_outlined, activeIcon: Icons.payments, label: 'Payroll', route: AppRoutes.payroll),
+      const _NavItem(icon: Icons.forum_outlined, activeIcon: Icons.forum, label: 'Support', route: AppRoutes.chatbot),
+    ];
+
+    final currentRoute = ModalRoute.of(context)?.settings.name;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -30,10 +38,8 @@ class AppBottomNav extends StatelessWidget {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: _items.asMap().entries.map((entry) {
-          final index = entry.key;
-          final item = entry.value;
-          final isActive = index == activeIndex;
+        children: items.map((item) {
+          final isActive = currentRoute == item.route;
           return GestureDetector(
             onTap: () {
               if (!isActive) Navigator.pushReplacementNamed(context, item.route);

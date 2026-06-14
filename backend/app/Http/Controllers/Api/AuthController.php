@@ -33,10 +33,11 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token,
             'user'  => [
-                'id'    => $user->id,
-                'name'  => $user->name,
-                'email' => $user->email,
-                'role'  => $user->role,
+                'id'          => $user->id,
+                'name'        => $user->name,
+                'email'       => $user->email,
+                'role'        => $user->role,
+                'employee_id' => $user->employee_id,
             ],
         ], 200);
     }
@@ -73,10 +74,11 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Profil berhasil diperbarui.',
             'user' => [
-                'id'    => $user->id,
-                'name'  => $user->name,
-                'email' => $user->email,
-                'role'  => $user->role,
+                'id'          => $user->id,
+                'name'        => $user->name,
+                'email'       => $user->email,
+                'role'        => $user->role,
+                'employee_id' => $user->employee_id,
             ],
         ], 200);
     }

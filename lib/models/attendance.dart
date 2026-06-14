@@ -5,12 +5,15 @@ class Attendance {
   final DateTime attendanceDate;
   final String status;
 
+  final String? employeeName;
+
   Attendance({
     required this.id,
     required this.employeeId,
     required this.shiftId,
     required this.attendanceDate,
     required this.status,
+    this.employeeName,
   });
 
   factory Attendance.fromJson(Map<String, dynamic> json) {
@@ -20,6 +23,7 @@ class Attendance {
       shiftId: json['shift_id'] as int,
       attendanceDate: DateTime.parse(json['attendance_date'] as String),
       status: json['status'] as String,
+      employeeName: json['employee']?['employee_name'] as String?,
     );
   }
 

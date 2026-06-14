@@ -82,6 +82,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildAppBar(BuildContext context) {
+    final user = context.watch<AuthProvider>().currentUser;
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -97,9 +98,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: const Icon(Icons.person, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
-          const Text(
-            'Admin Portal',
-            style: TextStyle(
+          Text(
+            user?.role == 'admin' ? 'Admin Portal' : 'Employee Portal',
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
               color: Color(0xFF1C1B1B),
@@ -133,16 +134,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildQuickActions(BuildContext context) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final isAdmin = user?.role == 'admin';
     return Row(
       children: [
-        Expanded(
-          child: _QuickActionButton(
-            icon: Icons.person_add_outlined,
-            label: 'Add Employee',
-            onTap: () => Navigator.pushNamed(context, AppRoutes.employeeForm),
+        if (isAdmin) ...[
+          Expanded(
+            child: _QuickActionButton(
+              icon: Icons.person_add_outlined,
+              label: 'Add Employee',
+              onTap: () => Navigator.pushNamed(context, AppRoutes.employeeForm),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
+          const SizedBox(width: 12),
+        ],
         Expanded(
           child: _QuickActionButton(
             icon: Icons.fact_check_outlined,
@@ -150,14 +155,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onTap: () => Navigator.pushNamed(context, AppRoutes.attendance),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _QuickActionButton(
-            icon: Icons.payments_outlined,
-            label: 'Calculate Payroll',
-            onTap: () => Navigator.pushNamed(context, AppRoutes.payroll),
+        if (isAdmin) ...[
+          const SizedBox(width: 12),
+          Expanded(
+            child: _QuickActionButton(
+              icon: Icons.payments_outlined,
+              label: 'Calculate Payroll',
+              onTap: () => Navigator.pushNamed(context, AppRoutes.payroll),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -274,8 +281,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildModuleGrid(BuildContext context) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final isAdmin = user?.role == 'admin';
     final modules = [
-      _ModuleItem(icon: Icons.group_outlined, label: 'Staff', route: AppRoutes.employees),
+      if (isAdmin)
+        _ModuleItem(icon: Icons.group_outlined, label: 'Staff', route: AppRoutes.employees),
       _ModuleItem(icon: Icons.schedule_outlined, label: 'Shifts', route: AppRoutes.shifts),
       _ModuleItem(icon: Icons.fact_check_outlined, label: 'Attendance', route: AppRoutes.attendance),
       _ModuleItem(icon: Icons.payments_outlined, label: 'Payroll', route: AppRoutes.payroll),

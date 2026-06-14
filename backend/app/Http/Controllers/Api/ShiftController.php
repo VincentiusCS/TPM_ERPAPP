@@ -27,11 +27,16 @@ class ShiftController extends Controller
      *
      * Validates: Requirement 3.2
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $shifts = Shift::with('employee:id,employee_name')
-            ->orderBy('shift_date', 'desc')
-            ->get();
+        $user = $request->user();
+        $query = Shift::with('employee:id,employee_name');
+
+        if ($user->role === 'karyawan') {
+            $query->where('employee_id', $user->employee_id);
+        }
+
+        $shifts = $query->orderBy('shift_date', 'desc')->get();
 
         return response()->json($shifts, 200);
     }
@@ -51,6 +56,12 @@ class ShiftController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        if ($request->user()->role !== 'admin') {
+            return response()->json([
+                'message' => 'Unauthorized. Admin role required.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'employee_id'    => ['required', 'integer', 'exists:employees,id'],
             'shift_date'     => ['required', 'date'],
@@ -84,8 +95,14 @@ class ShiftController extends Controller
      *
      * Validates: Requirement 3.4
      */
-    public function destroy(Shift $shift): JsonResponse
+    public function destroy(Request $request, Shift $shift): JsonResponse
     {
+        if ($request->user()->role !== 'admin') {
+            return response()->json([
+                'message' => 'Unauthorized. Admin role required.',
+            ], 403);
+        }
+
         $shift->delete();
 
         return response()->json([

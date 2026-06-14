@@ -8,11 +8,11 @@ import 'geocoding_service.dart';
 /// LocationService mengelola validasi lokasi GPS menggunakan geolocator dan Haversine.
 class LocationService {
   //kampus 2
-  static const double referenceLatitude = -7.7788;
-  static const double referenceLongitude = 110.4103;
+  // static const double referenceLatitude = -7.7788;
+  // static const double referenceLongitude = 110.4103;
   //Kontrakan
-  // static const double referenceLatitude = -7.7550938;
-  // static const double referenceLongitude = 110.4057171;
+  static const double referenceLatitude = -7.7550938;
+  static const double referenceLongitude = 110.4057171;
   static const double toleranceRadiusMeters = 100.0;
   static const Duration gpsTimeout = Duration(seconds: 15);
 

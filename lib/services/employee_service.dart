@@ -26,6 +26,8 @@ class EmployeeService {
     required String phone,
     required String address,
     required String status,
+    required String email,
+    required String password,
   }) async {
     try {
       final response = await _apiClient.post(
@@ -35,6 +37,8 @@ class EmployeeService {
           'phone': phone,
           'address': address,
           'status': status,
+          'email': email,
+          'password': password,
         },
       );
       // The API returns the employee object directly
@@ -59,6 +63,8 @@ class EmployeeService {
     required String phone,
     required String address,
     required String status,
+    required String email,
+    String? password,
   }) async {
     try {
       final response = await _apiClient.put(
@@ -68,6 +74,8 @@ class EmployeeService {
           'phone': phone,
           'address': address,
           'status': status,
+          'email': email,
+          if (password != null && password.isNotEmpty) 'password': password,
         },
       );
       // The API returns the employee object directly

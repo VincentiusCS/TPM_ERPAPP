@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiClient {
   // Ganti IP di bawah dengan IP komputer kamu (jalankan: ipconfig)
   // Emulator Android: 10.0.2.2 | HP fisik: IP WiFi komputer | Web: localhost
-  static const String _defaultBaseUrl = 'http://172.20.10.8:8000/api/v1';
+  static const String _defaultBaseUrl = 'http://192.168.2.10:8000/api/v1';
 
   late final Dio _dio;
   final GlobalKey<NavigatorState>? navigatorKey;

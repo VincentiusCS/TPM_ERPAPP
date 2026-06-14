@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../models/employee.dart';
 import '../models/shift.dart';
+import '../providers/auth_provider.dart';
 import '../services/employee_service.dart';
 import '../services/shift_service.dart';
 import '../utils/notification_helper.dart';
@@ -37,15 +39,27 @@ class _ShiftScreenState extends State<ShiftScreen> {
   Future<void> _loadData() async {
     setState(() { _isLoading = true; _error = null; });
     try {
-      final results = await Future.wait([
-        widget.shiftService.getAll(),
-        widget.employeeService.getAll(),
-      ]);
-      setState(() {
-        _shifts = results[0] as List<Shift>;
-        _employees = results[1] as List<Employee>;
-        _isLoading = false;
-      });
+      final user = context.read<AuthProvider>().currentUser;
+      final isAdmin = user?.role == 'admin';
+
+      if (isAdmin) {
+        final results = await Future.wait([
+          widget.shiftService.getAll(),
+          widget.employeeService.getAll(),
+        ]);
+        setState(() {
+          _shifts = results[0] as List<Shift>;
+          _employees = results[1] as List<Employee>;
+          _isLoading = false;
+        });
+      } else {
+        final shifts = await widget.shiftService.getAll();
+        setState(() {
+          _shifts = shifts;
+          _employees = [];
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() { _error = 'Gagal memuat data: $e'; _isLoading = false; });
     }
@@ -182,6 +196,9 @@ class _ShiftScreenState extends State<ShiftScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final isAdmin = user?.role == 'admin';
+
     return Scaffold(
       backgroundColor: const Color(0xFFFDF8F8),
       body: SafeArea(
@@ -202,9 +219,12 @@ class _ShiftScreenState extends State<ShiftScreen> {
                                 itemCount: _shifts.length + 1,
                                 itemBuilder: (context, index) {
                                   if (index == 0) {
-                                    return const Padding(
-                                      padding: EdgeInsets.only(bottom: 20),
-                                      child: Text('Shift Management', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: Color(0xFF1C1B1B), letterSpacing: -0.6)),
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 20),
+                                      child: Text(
+                                        isAdmin ? 'Shift Management' : 'My Shifts',
+                                        style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: Color(0xFF1C1B1B), letterSpacing: -0.6),
+                                      ),
                                     );
                                   }
                                   final shift = _shifts[index - 1];
@@ -217,15 +237,18 @@ class _ShiftScreenState extends State<ShiftScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF1C1B1B),
-        onPressed: _showAddShiftDialog,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton: isAdmin
+          ? FloatingActionButton(
+              backgroundColor: const Color(0xFF1C1B1B),
+              onPressed: _showAddShiftDialog,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
     );
   }
 
   Widget _buildAppBar() {
+    final user = context.watch<AuthProvider>().currentUser;
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -236,7 +259,10 @@ class _ShiftScreenState extends State<ShiftScreen> {
             child: const Icon(Icons.arrow_back, color: Color(0xFF1C1B1B)),
           ),
           const SizedBox(width: 12),
-          const Text('Admin Portal', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF1C1B1B))),
+          Text(
+            user?.role == 'admin' ? 'Admin Portal' : 'Employee Portal',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF1C1B1B)),
+          ),
           const Spacer(),
         ],
       ),
@@ -244,6 +270,9 @@ class _ShiftScreenState extends State<ShiftScreen> {
   }
 
   Widget _buildShiftCard(Shift shift) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final isAdmin = user?.role == 'admin';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
@@ -266,7 +295,10 @@ class _ShiftScreenState extends State<ShiftScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_getEmployeeName(shift.employeeId), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1C1B1B))),
+                Text(
+                  shift.employeeName ?? _getEmployeeName(shift.employeeId),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1C1B1B)),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   '${DateFormat('yyyy-MM-dd').format(shift.shiftDate)} • Rp${NumberFormat('#,###').format(shift.wagePerShift)}',
@@ -275,15 +307,16 @@ class _ShiftScreenState extends State<ShiftScreen> {
               ],
             ),
           ),
-          GestureDetector(
-            onTap: () => _deleteShift(shift),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(color: const Color(0xFFFDF8F8), borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.delete_outlined, size: 16, color: Color(0xFFBA1A1A)),
+          if (isAdmin)
+            GestureDetector(
+              onTap: () => _deleteShift(shift),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(color: const Color(0xFFFDF8F8), borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.delete_outlined, size: 16, color: Color(0xFFBA1A1A)),
+              ),
             ),
-          ),
         ],
       ),
     );

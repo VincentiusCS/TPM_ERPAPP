@@ -34,13 +34,16 @@ class AttendanceController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
         $query = Attendance::with([
             'employee:id,employee_name',
             'shift:id,shift_date,wage_per_shift',
         ]);
 
         // Filter berdasarkan employee_id
-        if ($request->filled('employee_id')) {
+        if ($user->role === 'karyawan') {
+            $query->where('employee_id', $user->employee_id);
+        } elseif ($request->filled('employee_id')) {
             $query->where('employee_id', $request->integer('employee_id'));
         }
 
@@ -73,12 +76,30 @@ class AttendanceController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $user = $request->user();
+
         $validated = $request->validate([
             'employee_id'     => ['required', 'integer', 'exists:employees,id'],
             'shift_id'        => ['required', 'integer', 'exists:shifts,id'],
             'attendance_date' => ['required', 'date'],
             'status'          => ['required', Rule::in(['hadir', 'tidak hadir'])],
         ]);
+
+        // Karyawan hanya bisa mencatat presensi untuk dirinya sendiri
+        if ($user->role === 'karyawan') {
+            $validated['employee_id'] = $user->employee_id;
+        }
+
+        // Cek duplikat: satu karyawan tidak boleh mencatat presensi lebih dari sekali untuk shift yang sama
+        $duplicate = Attendance::where('employee_id', $validated['employee_id'])
+            ->where('shift_id', $validated['shift_id'])
+            ->exists();
+
+        if ($duplicate) {
+            return response()->json([
+                'message' => 'Karyawan sudah melakukan presensi pada shift ini.',
+            ], 409);
+        }
 
         $attendance = Attendance::create($validated);
         $attendance->load([
@@ -101,6 +122,12 @@ class AttendanceController extends Controller
      */
     public function update(Request $request, Attendance $attendance): JsonResponse
     {
+        if ($request->user()->role !== 'admin') {
+            return response()->json([
+                'message' => 'Unauthorized. Admin role required.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'status' => ['required', Rule::in(['hadir', 'tidak hadir'])],
         ]);
